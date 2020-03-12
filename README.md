@@ -8,8 +8,16 @@ A script to generate UFW /16 deny rules based on log file entries and disconnect
 Introduction
 ------------
 
-This tools is designed to easy the process of creating UFW deny rules.
+This script is designed to ease the process of creating UFW deny rules.
 It looks at entries in netstat and auth.log to determine suspicious connections.
+
+Notes
+-----
+
+The script will look for a whitelist file in the same directory of the script if a whitelist
+or whitelist file is not specified.
+
+If a whitelist is not given it will exit.
 
 Requirements
 ------------
