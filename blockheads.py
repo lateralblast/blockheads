@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Name:         blockheads
-# Version:      0.0.5
+# Version:      0.0.6
 # Release:      1
 # License:      CC-BA (Creative Commons By Attribution)
 #               http://creativecommons.org/licenses/by/4.0/legalcode
@@ -22,7 +22,8 @@ import re
 
 # Environment information
 
-script_exe  = sys.argv[0]
+script_exe = sys.argv[0]
+script_dir = os.path.dirname(script_exe)
 
 # Default ports to check
 
@@ -33,9 +34,10 @@ default_ports = "8080,22,443"
 ufw_list = []
 ns_list  = []
 
-# Create whitelist
+# Create whitelist and set default whitelist file
 
 white_list = []
+white_list_file = "%s/whitelist" % (script_dir)
 
 # Get current DENY list
 
@@ -193,25 +195,24 @@ if option["whitelistfile"]:
     white_list = file_to_array(white_list_file)
   else:
     string = "Whitelist file %s does not exist" % (white_list_file)
-    exit
+    exit()
   if option["list"]:
     for ip in white_list:
       ip = ip.rstrip()
       print(ip)
-    exit
+    exit()
 else:
   if len(white_list) == 0:
-    white_list_file = "./whitelist"
     if os.path.exists(white_list_file):
       white_list = file_to_array(white_list_file)
     else:
       print("No whitelist specified")
-      exit
+      exit()
 
 if option["list"]:
   for ip in white_list:
     print(ip)
-  exit
+  exit()
 else:
   if verbose_mode == True:
     print("Adding White list:")
