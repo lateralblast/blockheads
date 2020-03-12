@@ -4,3 +4,5 @@
 # Added function capability 
 # 0.0.3: Thu 12 Mar 15:26:35 AEDT 2020
 # Fixed bugs
+# 0.0.4: Thu 12 Mar 19:00:35 AEDT 2020
+# Improved whitelist handling and add verbose option

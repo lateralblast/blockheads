@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Name:         blockheads
-# Version:      0.0.3
+# Version:      0.0.4
 # Release:      1
 # License:      CC-BA (Creative Commons By Attribution)
 #               http://creativecommons.org/licenses/by/4.0/legalcode
@@ -132,9 +132,13 @@ if sys.argv[-1] == sys.argv[0]:
   exit()
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--ports",required=False)               # Specify ports for netstat to look at
+parser.add_argument("--ports",required=False)               # Specify comma delimited ports for netstat to look at
+parser.add_argument("--whitelist",required=False)           # Specify comma delimited whitelist on command line
+parser.add_argument("--whitelistfile",required=False)       # Specify whitelist file to read
 parser.add_argument("--version",action='store_true')        # Display version
 parser.add_argument("--check",action='store_true')          # Do checks
+parser.add_argument("--list",action='store_true')           # Do list
+parser.add_argument("--verbose",action='store_true')           # Verbose mode
 parser.add_argument("--block",action='store_true')          # Do blocks
 
 option = vars(parser.parse_args())
@@ -171,6 +175,51 @@ def print_options(script_exe):
 if option["version"]:
   print_version(script_exe)
 
+if option["verbose"]:
+  verbose_mode = True
+else:
+  verbose_mode = False
+
+if option["whitelist"]:
+  white_list = option["whitelist"]
+  if re.search(r"\,",white_list):
+    white_list = white_list.split(",")
+  else:
+    white_list[0] = white_list
+
+if option["whitelistfile"]:
+  white_list_file = option["whitelistfile"]
+  if os.path.exists(white_list_file):
+    white_list = file_to_array(white_list_file)
+  else:
+    string = "Whitelist file %s does not exist" % (white_list_file)
+    exit
+  if option["list"]:
+    for ip in white_list:
+      ip = ip.rstrip()
+      print(ip)
+    exit
+else:
+  if len(white_list) == 0:
+    white_list_file = "./whitelist"
+    if os.path.exists(white_list_file):
+      white_list = file_to_array(white_list_file)
+    else:
+      print("No whitelist specified")
+      exit
+
+if option["list"]:
+  for ip in white_list:
+    ip = ip.rstrip()
+    print(ip)
+  exit
+else:
+  if verbose_mode == True:
+    print("Adding White list:")
+    for ip in white_list:
+      ip = ip.rstrip()
+      print(ip)
+
 if option["ports"]:
   netstat_ports = option["ports"]
   netstat_ports = re.sub(r"\,","|",netstat_ports)
@@ -178,12 +227,19 @@ else:
   netstat_ports = default_ports
   netstat_ports = re.sub(r"\,","|",netstat_ports)
 
+if verbose_mode == True:
+  print("Adding ports:")
+  ports = netstat_ports.split("|")
+  for port in ports:
+    print(port)
+
 if option["check"]:
   ufw_list   = get_ufw_deny_list(ufw_list)
   block_list = do_invalid_auth_checks(block_list,ufw_list,white_list,netstat_ports)
   block_commands = create_ufw_block_commands(block_list,block_commands)
   ns_list = get_netstat_tcp_connections(ns_list,netstat_ports)
   block_commands = create_tcp_disconnect_commands(ns_list,white_list,block_commands)
+  print("Block commands:")
   for block_command in block_commands:
     print(block_command)
 

@@ -40,6 +40,8 @@ usage: blockheads.py [-h] [--ports PORTS] [--version] [--check] [--block]
 optional arguments:
   -h, --help     show this help message and exit
   --ports PORTS
+  --whitelist WHITELIST
+  --whitelistfile WHITELISTFILE
   --version
   --check
   --block
