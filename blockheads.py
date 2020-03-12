@@ -239,7 +239,8 @@ if option["check"]:
   block_commands = create_ufw_block_commands(block_list,block_commands)
   ns_list = get_netstat_tcp_connections(ns_list,netstat_ports)
   block_commands = create_tcp_disconnect_commands(ns_list,white_list,block_commands)
-  print("Block commands:")
+  if verbose_mode == True:
+    print("Block commands:")
   for block_command in block_commands:
     print(block_command)
 
