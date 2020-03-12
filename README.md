@@ -44,6 +44,8 @@ optional arguments:
   --whitelistfile WHITELISTFILE
   --version
   --check
+  --list
+  --verbose
   --block
 ```
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Name:         blockheads
-# Version:      0.0.4
+# Version:      0.0.5
 # Release:      1
 # License:      CC-BA (Creative Commons By Attribution)
 #               http://creativecommons.org/licenses/by/4.0/legalcode
@@ -121,8 +121,8 @@ def print_help(script_exe):
 # Read a file into an array
 
 def file_to_array(file_name):
-  file_data  = open(file_name)
-  file_array = file_data.readlines()
+  with open(file_name) as temp_file:
+    file_array = [line.rstrip('\n') for line in temp_file]
   return file_array
 
 # If we have no command line arguments print help
@@ -210,14 +210,12 @@ else:
 
 if option["list"]:
   for ip in white_list:
-    ip = ip.rstrip()
     print(ip)
   exit
 else:
   if verbose_mode == True:
     print("Adding White list:")
     for ip in white_list:
-      ip = ip.rstrip()
       print(ip)
 
 if option["ports"]:
