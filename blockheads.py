@@ -11,7 +11,8 @@
 # Distribution: UNIX
 # Vendor:       Lateral Blast
 # Packager:     Richard Spindler <richard@lateralblast.com.au>
-# Description:  A script to generate UFW /16 deny rules based on log file entries and disconnect TCP sessions
+# Description:  A script to generate UFW /16 deny rules based on log file entries
+#               and disconnect TCP sessions
 
 # Import modules
 
@@ -54,7 +55,7 @@ block_commands = []
 
 # Get invalid user attempts from auth log
 
-def do_invalid_auth_checks(block_list,ufw_list,white_list,netstat_ports):
+def do_invalid_auth_checks(block_list, ufw_list, white_list, netstat_ports):
   if os.path.exists("/var/log/auth.log"):
     commands = []
     commands.append("sudo cat /var/log/auth.log |egrep 'Invalid user|no matching MAC|Unable to negotiate' |awk '{print $10}' |uniq |grep '^[0-9]'")
@@ -67,7 +68,7 @@ def do_invalid_auth_checks(block_list,ufw_list,white_list,netstat_ports):
       ip_list = os.popen(command).read()
       ip_list = ip_list.split("\n")
       for ip in ip_list:
-        if re.search(r"[0-9]",ip):
+        if re.search(r"[0-9]", ip):
           if not ip in ufw_list:
             if not ip in white_list:
               octets   = ip.split(".")
@@ -82,7 +83,7 @@ def do_invalid_auth_checks(block_list,ufw_list,white_list,netstat_ports):
 
 # Create UFW block commands
 
-def create_ufw_block_commands(block_list,block_command):
+def create_ufw_block_commands(block_list, block_command):
   for block_range in block_list:
     block_command = "sudo ufw insert 1 deny from %s to any" % (block_range) 
     block_commands.append(block_command)
@@ -90,7 +91,7 @@ def create_ufw_block_commands(block_list,block_command):
 
 # Get TCP connections list
 
-def get_netstat_tcp_connections(ns_list,netstat_ports):
+def get_netstat_tcp_connections(ns_list, netstat_ports):
   command = "sudo netstat -tn |egrep '%s' |awk '{print $5}' |grep ':[0-9]' |grep '^[0-9]'" % (netstat_ports)
   ns_list = os.popen(command).read()
   ns_list = ns_list.split("\n")
@@ -98,17 +99,17 @@ def get_netstat_tcp_connections(ns_list,netstat_ports):
 
 # Create TCP disconnect commands
 
-def create_tcp_disconnect_commands(ns_list,white_list,block_commands):
+def create_tcp_disconnect_commands(ns_list, white_list, block_commands):
   for ns_item in ns_list:
-    if re.search(r":",ns_item):
-      (ns_ip,ns_port) = ns_item.split(":")
+    if re.search(r":", ns_item):
+      (ns_ip, ns_port) = ns_item.split(":")
       if not ns_ip in white_list:
         octets   = ns_ip.split(".")
         block_ip = octets[0:2] 
         block_ip = ".".join(block_ip)
         block_range = "%s.0.0/16" % (block_ip)
         if not block_range in white_list:
-          block_command = "sudo /bin/ss -K dst %s dport = %s" % (ns_ip,ns_port)
+          block_command = "sudo /bin/ss -K dst %s dport = %s" % (ns_ip, ns_port)
           block_commands.append(block_command)
   return block_commands
 
@@ -133,15 +134,17 @@ if sys.argv[-1] == sys.argv[0]:
   print_help(script_exe)
   exit()
 
+# Handle command line arguments
+
 parser = argparse.ArgumentParser()
-parser.add_argument("--ports",required=False)               # Specify comma delimited ports for netstat to look at
-parser.add_argument("--whitelist",required=False)           # Specify comma delimited whitelist on command line
-parser.add_argument("--whitelistfile",required=False)       # Specify whitelist file to read
-parser.add_argument("--version",action='store_true')        # Display version
-parser.add_argument("--check",action='store_true')          # Do checks
-parser.add_argument("--list",action='store_true')           # Do list
-parser.add_argument("--verbose",action='store_true')           # Verbose mode
-parser.add_argument("--block",action='store_true')          # Do blocks
+parser.add_argument("--ports", required=False)               # Specify comma delimited ports for netstat to look at
+parser.add_argument("--whitelist", required=False)           # Specify comma delimited whitelist on command line
+parser.add_argument("--whitelistfile", required=False)       # Specify whitelist file to read
+parser.add_argument("--version", action='store_true')        # Display version
+parser.add_argument("--check", action='store_true')          # Do checks
+parser.add_argument("--list", action='store_true')           # Do list
+parser.add_argument("--verbose", action='store_true')        # Verbose mode
+parser.add_argument("--block", action='store_true')          # Do blocks
 
 option = vars(parser.parse_args())
 
@@ -150,7 +153,7 @@ option = vars(parser.parse_args())
 def print_version(script_exe):
   file_array = file_to_array(script_exe)
   version    = list(filter(lambda x: re.search(r"^# Version", x), file_array))[0].split(":")[1]
-  version    = re.sub(r"\s+","",version)
+  version    = re.sub(r"\s+", "", version)
   print(version)
 
 # Print options
@@ -161,33 +164,41 @@ def print_options(script_exe):
   print("\nOptions:\n")
   for line in opts_array:
     line = line.rstrip()
-    if re.search(r"#",line):
+    if re.search(r"#", line):
       option = line.split('"')[1]
       info   = line.split("# ")[1]
       if len(option) < 8:
-        string = "%s\t\t\t%s" % (option,info)
+        string = "%s\t\t\t%s" % (option, info)
       else:
         if len(option) < 16:
-          string = "%s\t\t%s" % (option,info)
+          string = "%s\t\t%s" % (option, info)
         else:
-          string = "%s\t%s" % (option,info)
+          string = "%s\t%s" % (option, info)
       print(string)
   print("\n")
 
+# Handle versions option
+
 if option["version"]:
   print_version(script_exe)
+
+# Handle verbose option
 
 if option["verbose"]:
   verbose_mode = True
 else:
   verbose_mode = False
 
+# Handle whitelist option
+
 if option["whitelist"]:
   white_list = option["whitelist"]
-  if re.search(r"\,",white_list):
+  if re.search(r"\,", white_list):
     white_list = white_list.split(",")
   else:
     white_list[0] = white_list
+
+# Handle whitelistfile option
 
 if option["whitelistfile"]:
   white_list_file = option["whitelistfile"]
@@ -209,6 +220,8 @@ else:
       print("No whitelist specified")
       exit()
 
+# Handle list option
+
 if option["list"]:
   for ip in white_list:
     print(ip)
@@ -219,12 +232,16 @@ else:
     for ip in white_list:
       print(ip)
 
+# Handle ports option
+
 if option["ports"]:
   netstat_ports = option["ports"]
-  netstat_ports = re.sub(r"\,","|",netstat_ports)
+  netstat_ports = re.sub(r"\,", "|", netstat_ports)
 else:
   netstat_ports = default_ports
-  netstat_ports = re.sub(r"\,","|",netstat_ports)
+  netstat_ports = re.sub(r"\,", "|", netstat_ports)
+
+# Print ports
 
 if verbose_mode == True:
   print("Adding ports:")
@@ -232,16 +249,20 @@ if verbose_mode == True:
   for port in ports:
     print(port)
 
+# Handle check option
+
 if option["check"]:
   ufw_list   = get_ufw_deny_list(ufw_list)
-  block_list = do_invalid_auth_checks(block_list,ufw_list,white_list,netstat_ports)
-  block_commands = create_ufw_block_commands(block_list,block_commands)
-  ns_list = get_netstat_tcp_connections(ns_list,netstat_ports)
-  block_commands = create_tcp_disconnect_commands(ns_list,white_list,block_commands)
+  block_list = do_invalid_auth_checks(block_list, ufw_list, white_list, netstat_ports)
+  block_commands = create_ufw_block_commands(block_list, block_commands)
+  ns_list = get_netstat_tcp_connections(ns_list, netstat_ports)
+  block_commands = create_tcp_disconnect_commands(ns_list, white_list, block_commands)
   if verbose_mode == True:
     print("Block commands:")
   for block_command in block_commands:
     print(block_command)
+
+# Handle block option
 
 if option["block"]:
   for block_command in block_commands:
