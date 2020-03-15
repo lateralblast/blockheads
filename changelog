@@ -10,3 +10,7 @@
 # Fixed file import
 # 0.0.6: Thu 12 Mar 2020 19:24:29 AEDT
 # Improved whitelist file check
+# 0.0.7: Sat 14 Mar 21:16:20 AEDT 2020
+# Added class and list UFW deny rules options
+# 0.0.8: Sun 15 Mar 12:41:59 AEDT 2020
+# Removed class function and implements smarted blocking based on whitelist

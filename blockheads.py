@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Name:         blockheads
-# Version:      0.0.6
+# Version:      0.0.8
 # Release:      1
 # License:      CC-BA (Creative Commons By Attribution)
 #               http://creativecommons.org/licenses/by/4.0/legalcode
@@ -65,20 +65,58 @@ def do_invalid_auth_checks(block_list, ufw_list, white_list, netstat_ports):
     command = "sudo netstat -tn 2>/dev/null | egrep '%s' | awk '{print $5}' | cut -d: -f1 | sort | uniq" % (netstat_ports)
     commands.append("sudo netstat -tn 2>/dev/null | egrep '8080|22|443' | awk '{print $5}' | cut -d: -f1 | sort | uniq")
     for command in commands:
-      ip_list = os.popen(command).read()
-      ip_list = ip_list.split("\n")
-      for ip in ip_list:
-        if re.search(r"[0-9]", ip):
-          if not ip in ufw_list:
-            if not ip in white_list:
-              octets   = ip.split(".")
-              block_ip = octets[0:2] 
-              block_ip = ".".join(block_ip)
-              block_range = "%s.0.0/16" % (block_ip)
-              if not block_range in ufw_list:
-                if not block_range in block_list:
-                  if not block_range in white_list:
-                    block_list.append(block_range)
+      test_list = os.popen(command).read()
+      test_list = test_list.split("\n")
+      for test_ip in test_list:
+        if re.search(r"[0-9]", test_ip):
+          if not test_ip in ufw_list:
+            if not test_ip in white_list:
+              block_oc = test_ip.split(".")
+              block_08 = block_oc[0:1]
+              block_08 = ".".join(block_08)
+              check_08 = block_08
+              block_08 = "%s.0.0.0/8" % (block_08)
+              block_16 = block_oc[0:2]
+              block_16 = ".".join(block_16)
+              check_16 = block_16
+              block_16 = "%s.0.0/16" % (block_16)
+              block_24 = block_oc[0:3]
+              block_24 = ".".join(block_24)
+              check_24 = block_24
+              block_24 = "%s.0/24" % (block_24)
+              found_08 = False
+              found_16 = False
+              found_24 = False
+              found_it = False
+              for white_ip in white_list:
+                white_oc = white_ip.split(".")
+                white_08 = white_oc[0:1]
+                white_08 = ".".join(white_08)
+                white_16 = white_oc[0:2]
+                white_16 = ".".join(white_16)
+                white_24 = white_oc[0:3]
+                white_24 = ".".join(white_24)
+                if white_08 == check_08:
+                  found_08 = True
+                if white_16 == check_16:
+                  found_16 = True
+                if white_24 == check_24:
+                  found_24 = True
+              if found_08 == True and found_16 == True and found_24 == True:
+                found_it = True
+              else:
+                if found_08 == False and found_16 == False and found_24 == False:
+                  block_range = block_08
+                else:
+                  if found_08 == True and found_16 == False and found_24 == False:
+                    block_range = block_16
+                  else:
+                    found_it = True
+              if found_it == False:
+                if not block_range in ufw_list:
+                  if not block_range in block_list:
+                    if not block_range in white_list:
+                      block_list.append(block_range)
   return block_list
 
 # Create UFW block commands
@@ -102,15 +140,57 @@ def get_netstat_tcp_connections(ns_list, netstat_ports):
 def create_tcp_disconnect_commands(ns_list, white_list, block_commands):
   for ns_item in ns_list:
     if re.search(r":", ns_item):
-      (ns_ip, ns_port) = ns_item.split(":")
-      if not ns_ip in white_list:
-        octets   = ns_ip.split(".")
-        block_ip = octets[0:2] 
-        block_ip = ".".join(block_ip)
-        block_range = "%s.0.0/16" % (block_ip)
-        if not block_range in white_list:
-          block_command = "sudo /bin/ss -K dst %s dport = %s" % (ns_ip, ns_port)
-          block_commands.append(block_command)
+      (test_ip, ns_port) = ns_item.split(":")
+      if not test_ip in ufw_list:
+        if not test_ip in white_list:
+          block_oc = test_ip.split(".")
+          block_08 = block_oc[0:1]
+          block_08 = ".".join(block_08)
+          check_08 = block_08
+          block_08 = "%s.0.0.0/8" % (block_08)
+          block_16 = block_oc[0:2]
+          block_16 = ".".join(block_16)
+          check_16 = block_16
+          block_16 = "%s.0.0/16" % (block_16)
+          block_24 = block_oc[0:3]
+          block_24 = ".".join(block_24)
+          check_24 = block_24
+          block_24 = "%s.0/24" % (block_24)
+          found_08 = False
+          found_16 = False
+          found_24 = False
+          found_it = False
+          for white_ip in white_list:
+            white_oc = white_ip.split(".")
+            white_08 = white_oc[0:1]
+            white_08 = ".".join(white_08)
+            white_16 = white_oc[0:2]
+            white_16 = ".".join(white_16)
+            white_24 = white_oc[0:3]
+            white_24 = ".".join(white_24)
+            if white_08 == check_08:
+              found_08 = True
+            if white_16 == check_16:
+              found_16 = True
+            if white_24 == check_24:
+              found_24 = True
+          if found_08 == True and found_16 == True and found_24 == True:
+            found_it = True
+          else:
+            if found_08 == False and found_16 == False and found_24 == False:
+              block_range = block_08
+            else:
+              if found_08 == True and found_16 == False and found_24 == False:
+                block_range = block_16
+              else:
+                found_it = True
+          if found_it == False:
+            if not block_range in ufw_list:
+              if not block_range in block_list:
+                if not block_range in white_list:
+                  block_command = "sudo /bin/ss -K dst %s dport = %s" % (test_ip, ns_port)
+                  if not block_command in block_commands:
+                    block_commands.append(block_command)
   return block_commands
 
 # Print help
@@ -143,6 +223,7 @@ parser.add_argument("--whitelistfile", required=False)       # Specify whitelist
 parser.add_argument("--version", action='store_true')        # Display version
 parser.add_argument("--check", action='store_true')          # Do checks
 parser.add_argument("--list", action='store_true')           # Do list
+parser.add_argument("--deny", action='store_true')           # Used with list to list UFW deny rules
 parser.add_argument("--verbose", action='store_true')        # Verbose mode
 parser.add_argument("--block", action='store_true')          # Do blocks
 
@@ -223,8 +304,13 @@ else:
 # Handle list option
 
 if option["list"]:
-  for ip in white_list:
-    print(ip)
+  if option["deny"]:
+    ufw_list = get_ufw_deny_list(ufw_list)
+    for ip in ufw_list:
+      print(ip)
+  else:
+    for ip in white_list:
+      print(ip)
   exit()
 else:
   if verbose_mode == True:
