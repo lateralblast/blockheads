@@ -1,0 +1,10 @@
+[flake8]
+# E111: indentation is not a multiple of four
+# E221: multiple spaces before operator
+# E501: line too long
+ignore = E11,E221,E501
+exclude =
+    # No need to traverse our git directory
+    .git,
+    # There's no value in checking cache directories
+    __pycache__
