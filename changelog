@@ -14,3 +14,5 @@
 # Added class and list UFW deny rules options
 # 0.0.8: Sun 15 Mar 12:41:59 AEDT 2020
 # Removed class function and implements smarted blocking based on whitelist
+# 0.0.9: Mon 16 Mar 12:42:29 AEDT 2020
+# Added add function

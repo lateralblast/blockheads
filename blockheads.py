@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Name:         blockheads
-# Version:      0.0.8
+# Version:      0.0.9
 # Release:      1
 # License:      CC-BA (Creative Commons By Attribution)
 #               http://creativecommons.org/licenses/by/4.0/legalcode
@@ -34,7 +34,9 @@ ns_list  = []
 # Create whitelist and set default whitelist file
 
 white_list = []
-white_list_file = "%s/whitelist" % (script_dir)
+white_list_file = "/etc/whitelist"
+if not os.path.exists(white_list_file):
+  white_list_file = "%s/whitelist" % (script_dir)
 
 
 # Get current DENY list
@@ -190,12 +192,55 @@ def create_tcp_disconnect_commands(ns_list, white_list, block_commands):
   return block_commands
 
 
+# Add IP to whitelist
+def add_to_white_list(white_list_file, force_mode, add_ip):
+  if not add_ip in white_list:
+    if white_list_file == "/etc/whitelist":
+      command = "sudo echo '%s' >> %s " % (add_ip, white_list_file)
+    else:
+      command = "echo '%s' >> %s " % (add_ip, white_list_file)
+    if force_mode == True:
+      output  = os.popen(command).read()
+      print(output)
+    else:
+      print("Command:")
+  else:
+    string = "Entry '%s' already in white list file '%s'" % (add_ip, white_list_file)
+    print(string)
+  return
+
+
+# Delete deny rule
+def delete_ufw_deny_rule(delete_rule, force_mode, verbose_mode):
+  if verbose_mode == True:
+    command = "sudo ufw status numbered |grep '%s'" % (delete_rule)
+    output  = os.popen(command).read()
+    print("Found Rule:")
+    print(output)
+  command = "sudo ufw status numbered |grep '%s' |awk '{print $1}' |cut -f2 -d[ |cut -f1 -d]" % (delete_rule)
+  rule_no = os.popen(command).read()
+  rule_no = rule_no.split("\n")
+  rule_no = rule_no[0]
+  if re.search(r"[0-9]",rule_no):
+    if force_mode == True:
+      command = "echo y |sudo ufw delete %s" % (rule_no)
+      output  = os.popen(command).read()
+      print(output)
+    else:
+      if verbose_mode == True:
+        print("Command:")
+      command = "sudo ufw delete %s" % (rule_no)
+      print(command)
+  return 
+
+
 # Print help
 def print_help(script_exe):
   print("\n")
   command = "%s -h" % (script_exe)
   os.system(command)
   print("\n")
+  return
 
 
 # Read a file into an array
@@ -213,6 +258,8 @@ if sys.argv[-1] == sys.argv[0]:
 # Handle command line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("--ports", required=False)               # Specify comma delimited ports for netstat to look at
+parser.add_argument("--delete", required=False)              # Delete a deny rule associate with an IP
+parser.add_argument("--add", required=False)                 # Add a new rule to whitelist
 parser.add_argument("--whitelist", required=False)           # Specify comma delimited whitelist on command line
 parser.add_argument("--whitelistfile", required=False)       # Specify whitelist file to read
 parser.add_argument("--version", action='store_true')        # Display version
@@ -221,6 +268,7 @@ parser.add_argument("--list", action='store_true')           # Do list
 parser.add_argument("--deny", action='store_true')           # Used with list to list UFW deny rules
 parser.add_argument("--verbose", action='store_true')        # Verbose mode
 parser.add_argument("--block", action='store_true')          # Do blocks
+parser.add_argument("--yes", action='store_true')            # Do delete
 
 option = vars(parser.parse_args())
 
@@ -253,16 +301,26 @@ def print_options(script_exe):
       print(string)
   print("\n")
 
-
 # Handle versions option
 if option["version"]:
   print_version(script_exe)
+
+# Handle yes switch
+if option["yes"]:
+  force_mode = True
+else:
+  force_mode = False
 
 # Handle verbose option
 if option["verbose"]:
   verbose_mode = True
 else:
   verbose_mode = False
+
+# Handle delete option
+if option["delete"]:
+  delete_rule = option["delete"]
+  delete_ufw_deny_rule(delete_rule, force_mode, verbose_mode)
 
 # Handle whitelist option
 if option["whitelist"]:
@@ -323,6 +381,14 @@ if verbose_mode is True:
   ports = netstat_ports.split("|")
   for port in ports:
     print(port)
+
+
+# Handle add option
+if option["add"]:
+  add_ip = option["add"]
+  while_list = file_to_array(white_list_file)
+  add_to_white_list(white_list_file, force_mode, add_ip)
+  delete_ufw_deny_rule(add_ip, force_mode, verbose_mode)
 
 # Handle check option
 if option["check"]:
