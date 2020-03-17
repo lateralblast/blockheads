@@ -194,12 +194,12 @@ def create_tcp_disconnect_commands(ns_list, white_list, block_commands):
 
 # Add IP to whitelist
 def add_to_white_list(white_list_file, force_mode, add_ip):
-  if not add_ip in white_list:
+  if add_ip not in white_list:
     if white_list_file == "/etc/whitelist":
       command = "sudo echo '%s' >> %s " % (add_ip, white_list_file)
     else:
       command = "echo '%s' >> %s " % (add_ip, white_list_file)
-    if force_mode == True:
+    if force_mode is True:
       output  = os.popen(command).read()
       print(output)
     else:
@@ -212,7 +212,7 @@ def add_to_white_list(white_list_file, force_mode, add_ip):
 
 # Delete deny rule
 def delete_ufw_deny_rule(delete_rule, force_mode, verbose_mode):
-  if verbose_mode == True:
+  if verbose_mode is True:
     command = "sudo ufw status numbered |grep '%s'" % (delete_rule)
     output  = os.popen(command).read()
     print("Found Rule:")
@@ -221,17 +221,17 @@ def delete_ufw_deny_rule(delete_rule, force_mode, verbose_mode):
   rule_no = os.popen(command).read()
   rule_no = rule_no.split("\n")
   rule_no = rule_no[0]
-  if re.search(r"[0-9]",rule_no):
-    if force_mode == True:
+  if re.search(r"[0-9]", rule_no):
+    if force_mode is True:
       command = "echo y |sudo ufw delete %s" % (rule_no)
       output  = os.popen(command).read()
       print(output)
     else:
-      if verbose_mode == True:
+      if verbose_mode is True:
         print("Command:")
       command = "sudo ufw delete %s" % (rule_no)
       print(command)
-  return 
+  return
 
 
 # Print help
@@ -300,6 +300,7 @@ def print_options(script_exe):
           string = "%s\t%s" % (option, info)
       print(string)
   print("\n")
+
 
 # Handle versions option
 if option["version"]:
