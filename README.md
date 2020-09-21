@@ -2,8 +2,9 @@
 
 # BLOCKHEADS
 
-A script to generate UFW /16 deny rules based on log file entries and disconnect
-TCP sessions
+A script to:
+- Generate UFW /16 deny rules based on log file entries and disconnect TCP sessions
+- Import an allow/deny list and apply rules
 
 ## Introduction
 
@@ -14,10 +15,10 @@ connections.
 
 ## Notes
 
-The script will look for a whitelist file in the same directory of the script if
-a whitelist or whitelist file is not specified.
+The script will look for a allowlist file in the same directory of the script if
+a allowlist or allowlist file is not specified.
 
-If a whitelist is not given it will exit.
+If a allowlist is not given it will exit.
 
 ## Requirements
 
@@ -41,18 +42,27 @@ This software is licensed as
 ## Usage
 
 ```bash
-usage: blockheads.py [-h] [--ports PORTS] [--version] [--check] [--block]
+usage: blockheads.py [-h] [--ports PORTS] [--delete DELETE] [--add ADD] [--allowlist ALLOWLIST] [--denylist DENYLIST] [--allowlistfile ALLOWLISTFILE]
+                     [--denylistfile DENYLISTFILE] [--version] [--check] [--list] [--deny] [--allow] [--verbose] [--block] [--yes] [--import]
 
 optional arguments:
-  -h, --help     show this help message and exit
+  -h, --help            show this help message and exit
   --ports PORTS
-  --whitelist WHITELIST
-  --whitelistfile WHITELISTFILE
+  --delete DELETE
+  --add ADD
+  --allowlist ALLOWLIST
+  --denylist DENYLIST
+  --allowlistfile ALLOWLISTFILE
+  --denylistfile DENYLISTFILE
   --version
   --check
   --list
+  --deny
+  --allow
   --verbose
   --block
+  --yes
+  --import
 ```
 
 ## Examples

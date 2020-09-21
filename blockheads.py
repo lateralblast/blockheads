@@ -14,29 +14,40 @@
 # Description:  A script to generate UFW /16 deny rules based on log file
 #               entries and disconnect TCP sessions
 
+
 # Import modules
 import argparse
 import sys
 import os
 import re
 
+
 # Environment information
 script_exe = sys.argv[0]
 script_dir = os.path.dirname(script_exe)
 
+
 # Default ports to check
-default_ports = "8080,22,443"
+default_ports = "22,443"
+
 
 # Create UFW and netstat list
 ufw_list = []
 ns_list  = []
 
-# Create whitelist and set default whitelist file
 
-white_list = []
-white_list_file = "/etc/whitelist"
-if not os.path.exists(white_list_file):
-  white_list_file = "%s/whitelist" % (script_dir)
+# Create allow list and set default allow list file
+allow_list = []
+allow_list_file = "/etc/allowlist"
+if not os.path.exists(allow_list_file):
+  allow_list_file = "%s/allowlist" % (script_dir)
+
+
+# Create deny list and get get default deny list
+deny_list = []
+deny_list_file = "/etc/denylist"
+if not os.path.exists(deny_list_file):
+  deny_list_file = "%s/denylist" % (script_dir)
 
 
 # Get current DENY list
@@ -48,12 +59,12 @@ def get_ufw_deny_list(ufw_list):
 
 
 # Set up block list and commands
-block_list     = []
-block_commands = []
+deny_list   = []
+ufw_commands = []
 
 
 # Get invalid user attempts from auth log
-def do_invalid_auth_checks(block_list, ufw_list, white_list, netstat_ports):
+def do_invalid_auth_checks(deny_list, ufw_list, allow_list, netstat_ports):
   if os.path.exists("/var/log/auth.log"):
     commands = []
     commands.append("sudo cat /var/log/auth.log |egrep 'Invalid user|no matching MAC|Unable to negotiate' |awk '{print $10}' |uniq |grep '^[0-9]'")
@@ -68,7 +79,7 @@ def do_invalid_auth_checks(block_list, ufw_list, white_list, netstat_ports):
       for test_ip in test_list:
         if re.search(r"[0-9]", test_ip):
           if test_ip not in ufw_list:
-            if test_ip not in white_list:
+            if test_ip not in allow_list:
               block_oc = test_ip.split(".")
               block_08 = block_oc[0:1]
               block_08 = ".".join(block_08)
@@ -86,7 +97,7 @@ def do_invalid_auth_checks(block_list, ufw_list, white_list, netstat_ports):
               found_16 = False
               found_24 = False
               found_it = False
-              for white_ip in white_list:
+              for white_ip in allow_list:
                 white_oc = white_ip.split(".")
                 white_08 = white_oc[0:1]
                 white_08 = ".".join(white_08)
@@ -112,18 +123,52 @@ def do_invalid_auth_checks(block_list, ufw_list, white_list, netstat_ports):
                     found_it = True
               if found_it is False:
                 if block_range not in ufw_list:
-                  if block_range not in block_list:
-                    if block_range not in white_list:
-                      block_list.append(block_range)
-  return block_list
+                  if block_range not in deny_list:
+                    if block_range not in allow_list:
+                      deny_list.append(block_range)
+  return deny_list
 
 
 # Create UFW block commands
-def create_ufw_block_commands(block_list, block_command):
-  for block_range in block_list:
-    block_command = "sudo ufw insert 1 deny from %s to any" % (block_range)
-    block_commands.append(block_command)
-  return block_commands
+def create_ufw_block_commands(deny_list, allow_list, ufw_commands, netstat_ports):
+  for block_range in deny_list:
+    if not re.search(r"^#",block_range):
+      if not block_range in allow_list:
+        block_command = "sudo ufw insert 1 deny from %s to any" % (block_range)
+        ufw_commands.append(block_command)
+  return ufw_commands
+
+
+# Create ufw allow commands
+def create_ufw_allow_commands(allow_list, deny_list, ufw_commands, netstat_ports):
+  for allow_range in allow_list:
+    port_nos = []
+    if not re.search(r"^#",allow_range):
+      if re.search(r"\d",netstat_ports):
+        if re.search(r"\s+",allow_range):
+          check_range = allow_range.split("\s+")[0]
+        else:
+          check_range = allow_range
+          if re.search(r"\|",netstat_ports):
+            port_nos = netstat_ports.split("|")
+          else:
+            port_nos[0] = netstat_ports
+      else:
+        if re.search(r"\s+",allow_range):
+          port_nos = allow_list.split("\s+")[1]
+          if re.search(r",",port_nos):
+            port_nos = port_nos.split(",")
+          else:
+            port_nos[0] = port_nos
+      if not check_range in deny_list:
+        if len(port_nos) > 0:
+          for port_no in port_nos:
+            allow_command = "sudo ufw insert 1 allow from %s to any port %s" % (allow_range, port_no)
+            ufw_commands.append(allow_command)
+        else: 
+          allow_command = "sudo ufw insert 1 allow from %s to any" % (allow_range)
+          ufw_commands.append(allow_command)
+  return ufw_commands
 
 
 # Get TCP connections list
@@ -135,12 +180,12 @@ def get_netstat_tcp_connections(ns_list, netstat_ports):
 
 
 # Create TCP disconnect commands
-def create_tcp_disconnect_commands(ns_list, white_list, block_commands):
+def create_tcp_disconnect_commands(ns_list, allow_list, ufw_commands):
   for ns_item in ns_list:
     if re.search(r":", ns_item):
       (test_ip, ns_port) = ns_item.split(":")
       if test_ip not in ufw_list:
-        if test_ip not in white_list:
+        if test_ip not in allow_list:
           block_oc = test_ip.split(".")
           block_08 = block_oc[0:1]
           block_08 = ".".join(block_08)
@@ -158,7 +203,7 @@ def create_tcp_disconnect_commands(ns_list, white_list, block_commands):
           found_16 = False
           found_24 = False
           found_it = False
-          for white_ip in white_list:
+          for white_ip in allow_list:
             white_oc = white_ip.split(".")
             white_08 = white_oc[0:1]
             white_08 = ".".join(white_08)
@@ -184,28 +229,28 @@ def create_tcp_disconnect_commands(ns_list, white_list, block_commands):
                 found_it = True
           if found_it is False:
             if block_range not in ufw_list:
-              if block_range not in block_list:
-                if block_range not in white_list:
+              if block_range not in deny_list:
+                if block_range not in allow_list:
                   block_command = "sudo /bin/ss -K dst %s dport = %s" % (test_ip, ns_port)
-                  if block_command not in block_commands:
-                    block_commands.append(block_command)
-  return block_commands
+                  if block_command not in ufw_commands:
+                    ufw_commands.append(block_command)
+  return ufw_commands
 
 
-# Add IP to whitelist
-def add_to_white_list(white_list_file, force_mode, add_ip):
-  if add_ip not in white_list:
-    if white_list_file == "/etc/whitelist":
-      command = "sudo echo '%s' >> %s " % (add_ip, white_list_file)
+# Add IP to allowlist
+def add_to_allow_list(allow_list_file, force_mode, add_ip):
+  if add_ip not in allow_list:
+    if allow_list_file == "/etc/allowlist":
+      command = "sudo echo '%s' >> %s " % (add_ip, allow_list_file)
     else:
-      command = "echo '%s' >> %s " % (add_ip, white_list_file)
+      command = "echo '%s' >> %s " % (add_ip, allow_list_file)
     if force_mode is True:
       output  = os.popen(command).read()
       print(output)
     else:
       print("Command:")
   else:
-    string = "Entry '%s' already in white list file '%s'" % (add_ip, white_list_file)
+    string = "Entry '%s' already in white list file '%s'" % (add_ip, allow_list_file)
     print(string)
   return
 
@@ -255,20 +300,25 @@ if sys.argv[-1] == sys.argv[0]:
   print_help(script_exe)
   exit()
 
+
 # Handle command line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("--ports", required=False)               # Specify comma delimited ports for netstat to look at
 parser.add_argument("--delete", required=False)              # Delete a deny rule associate with an IP
-parser.add_argument("--add", required=False)                 # Add a new rule to whitelist
-parser.add_argument("--whitelist", required=False)           # Specify comma delimited whitelist on command line
-parser.add_argument("--whitelistfile", required=False)       # Specify whitelist file to read
+parser.add_argument("--add", required=False)                 # Add a new rule to allowlist
+parser.add_argument("--allowlist", required=False)           # Specify comma delimited allowlist on command line
+parser.add_argument("--denylist", required=False)            # Specify comma delimited denylist on command line
+parser.add_argument("--allowlistfile", required=False)       # Specify allowlist file to read
+parser.add_argument("--denylistfile", required=False)        # Specify denylist file to read
 parser.add_argument("--version", action='store_true')        # Display version
 parser.add_argument("--check", action='store_true')          # Do checks
 parser.add_argument("--list", action='store_true')           # Do list
 parser.add_argument("--deny", action='store_true')           # Used with list to list UFW deny rules
+parser.add_argument("--allow", action='store_true')          # Used with allowlist to specify allow as default
 parser.add_argument("--verbose", action='store_true')        # Verbose mode
 parser.add_argument("--block", action='store_true')          # Do blocks
 parser.add_argument("--yes", action='store_true')            # Do delete
+parser.add_argument("--import", action='store_true')         # Import rules from allowlist
 
 option = vars(parser.parse_args())
 
@@ -302,9 +352,19 @@ def print_options(script_exe):
   print("\n")
 
 
+# Handle allow option
+if option["allow"]:
+  allow_mode = True
+  deny_mode  = False
+else:
+  allow_mode = False
+  deny_mode  = True
+
+
 # Handle versions option
 if option["version"]:
   print_version(script_exe)
+
 
 # Handle yes switch
 if option["yes"]:
@@ -312,44 +372,94 @@ if option["yes"]:
 else:
   force_mode = False
 
+
 # Handle verbose option
 if option["verbose"]:
   verbose_mode = True
 else:
   verbose_mode = False
 
+
 # Handle delete option
 if option["delete"]:
   delete_rule = option["delete"]
   delete_ufw_deny_rule(delete_rule, force_mode, verbose_mode)
 
-# Handle whitelist option
-if option["whitelist"]:
-  white_list = option["whitelist"]
-  if re.search(r"\,", white_list):
-    white_list = white_list.split(",")
-  else:
-    white_list[0] = white_list
 
-# Handle whitelistfile option
-if option["whitelistfile"]:
-  white_list_file = option["whitelistfile"]
-  if os.path.exists(white_list_file):
-    white_list = file_to_array(white_list_file)
+# Handle allowlist option
+if option["allowlist"]:
+  allow_list = option["allowlist"]
+  if re.search(r"\,", allow_list):
+    allow_list = allow_list.split(",")
   else:
-    string = "Whitelist file %s does not exist" % (white_list_file)
+    allow_list[0] = allow_list
+
+
+# Handle allowlistfile option
+if option["allowlistfile"]:
+  allow_list_file = option["allowlistfile"]
+  if os.path.exists(allow_list_file):
+    allow_list = file_to_array(allow_list_file)
+  else:
+    string = "allowlist file %s does not exist" % (allow_list_file)
+    print(string)
     exit()
   if option["list"]:
-    for ip in white_list:
+    for ip in allow_list:
       ip = ip.rstrip()
       print(ip)
     exit()
 else:
-  if len(white_list) == 0:
-    if os.path.exists(white_list_file):
-      white_list = file_to_array(white_list_file)
+  if len(allow_list) == 0:
+    if os.path.exists(allow_list_file):
+      allow_list = file_to_array(allow_list_file)
     else:
-      print("No whitelist specified")
+      print("No allowlist specified")
+      allow_list = []
+
+
+# Handle allowlistfile option
+if option["denylistfile"]:
+  deny_list_file = option["denylistfile"]
+  if os.path.exists(deny_list_file):
+    deny_list = file_to_array(deny_list_file)
+  else:
+    string = "allowlist file %s does not exist" % (deny_list_file)
+    print(string)
+    exit()
+  if option["list"]:
+    for ip in deny_list:
+      ip = ip.rstrip()
+      print(ip)
+    exit()
+else:
+  if len(deny_list) == 0:
+    if os.path.exists(deny_list_file):
+      deny_list = file_to_array(deny_list_file)
+    else:
+      print("No denylist specified")
+      deny_list = []
+
+
+# Handle allowlistfile option
+if option["allowlistfile"]:
+  allow_list_file = option["allowlistfile"]
+  if os.path.exists(allow_list_file):
+    allow_list = file_to_array(allow_list_file)
+  else:
+    string = "allowlist file %s does not exist" % (allow_list_file)
+    exit()
+  if option["list"]:
+    for ip in allow_list:
+      ip = ip.rstrip()
+      print(ip)
+    exit()
+else:
+  if len(allow_list) == 0:
+    if os.path.exists(allow_list_file):
+      allow_list = file_to_array(allow_list_file)
+    else:
+      print("No allowlist specified")
       exit()
 
 # Handle list option
@@ -359,22 +469,27 @@ if option["list"]:
     for ip in ufw_list:
       print(ip)
   else:
-    for ip in white_list:
+    for ip in allow_list:
       print(ip)
   exit()
 else:
   if verbose_mode is True:
     print("Adding White list:")
-    for ip in white_list:
+    for ip in allow_list:
       print(ip)
+
 
 # Handle ports option
 if option["ports"]:
   netstat_ports = option["ports"]
   netstat_ports = re.sub(r"\,", "|", netstat_ports)
 else:
-  netstat_ports = default_ports
-  netstat_ports = re.sub(r"\,", "|", netstat_ports)
+  if option["allow"] or option["deny"]:
+    netstat_ports = ""
+  else:
+    netstat_ports = default_ports
+    netstat_ports = re.sub(r"\,", "|", netstat_ports)
+
 
 # Print ports
 if verbose_mode is True:
@@ -384,28 +499,43 @@ if verbose_mode is True:
     print(port)
 
 
+# Handle import option
+
+if option['import']:
+  if allow_mode == True:
+    ufw_commands = create_ufw_allow_commands(allow_list, deny_list, ufw_commands, netstat_ports)
+  else:
+    ufw_commands = create_ufw_block_commands(allow_list, deny_list, ufw_commands, netstat_ports)
+  if verbose_mode is True:
+    print("Commands:")
+  for block_command in ufw_commands:
+    print(block_command)
+
+
 # Handle add option
 if option["add"]:
   add_ip = option["add"]
-  while_list = file_to_array(white_list_file)
-  add_to_white_list(white_list_file, force_mode, add_ip)
+  while_list = file_to_array(allow_list_file)
+  add_to_allow_list(allow_list_file, force_mode, add_ip)
   delete_ufw_deny_rule(add_ip, force_mode, verbose_mode)
+
 
 # Handle check option
 if option["check"]:
   ufw_list   = get_ufw_deny_list(ufw_list)
-  block_list = do_invalid_auth_checks(block_list, ufw_list, white_list, netstat_ports)
-  block_commands = create_ufw_block_commands(block_list, block_commands)
+  deny_list = do_invalid_auth_checks(deny_list, ufw_list, allow_list, netstat_ports)
+  ufw_commands = create_ufw_block_commands(deny_list, ufw_commands)
   ns_list = get_netstat_tcp_connections(ns_list, netstat_ports)
-  block_commands = create_tcp_disconnect_commands(ns_list, white_list, block_commands)
+  ufw_commands = create_tcp_disconnect_commands(ns_list, allow_list, ufw_commands)
   if verbose_mode is True:
     print("Block commands:")
-  for block_command in block_commands:
+  for block_command in ufw_commands:
     print(block_command)
+
 
 # Handle block option
 if option["block"]:
-  for block_command in block_commands:
+  for block_command in ufw_commands:
     command = "%s | sh -x"
     output = os.popen(command).read()
     print(output)

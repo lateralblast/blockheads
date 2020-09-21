@@ -5,14 +5,16 @@
 # 0.0.3: Thu 12 Mar 15:26:35 AEDT 2020
 # Fixed bugs
 # 0.0.4: Thu 12 Mar 19:00:35 AEDT 2020
-# Improved whitelist handling and add verbose option
+# Improved allowlist handling and add verbose option
 # 0.0.5: Thu 12 Mar 19:13:24 AEDT 2020
 # Fixed file import
 # 0.0.6: Thu 12 Mar 2020 19:24:29 AEDT
-# Improved whitelist file check
+# Improved allowlist file check
 # 0.0.7: Sat 14 Mar 21:16:20 AEDT 2020
 # Added class and list UFW deny rules options
 # 0.0.8: Sun 15 Mar 12:41:59 AEDT 2020
-# Removed class function and implements smarted blocking based on whitelist
+# Removed class function and implements smarted blocking based on allowlist
 # 0.0.9: Mon 16 Mar 12:42:29 AEDT 2020
 # Added add function
+# 0.1.0: Mon 21 Sep 2020 22:24:34 AEST
+# Added import, and allowlist processing
