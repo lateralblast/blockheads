@@ -18,3 +18,5 @@
 # Added add function
 # 0.1.0: Mon 21 Sep 2020 22:24:34 AEST
 # Added import, and allowlist processing
+# 0.1.1: Tue 22 Sep 2020 15:26:25 AEST
+# Improved denylist processing

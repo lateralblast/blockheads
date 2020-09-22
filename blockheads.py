@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Name:         blockheads
-# Version:      0.0.9
+# Version:      0.1.0
 # Release:      1
 # License:      CC-BA (Creative Commons By Attribution)
 #               http://creativecommons.org/licenses/by/4.0/legalcode
@@ -131,22 +131,44 @@ def do_invalid_auth_checks(deny_list, ufw_list, allow_list, netstat_ports):
 
 # Create UFW block commands
 def create_ufw_block_commands(deny_list, allow_list, ufw_commands, netstat_ports):
-  for block_range in deny_list:
-    if not re.search(r"^#",block_range):
-      if not block_range in allow_list:
-        block_command = "sudo ufw insert 1 deny from %s to any" % (block_range)
-        ufw_commands.append(block_command)
+  for deny_range in deny_list:
+    port_nos = []
+    if not re.search(r"^#",deny_range):
+      if re.search(r"\d",netstat_ports):
+        if re.search(r"\s+",deny_range):
+          check_range = deny_range.split()[0]
+        else:
+          check_range = deny_range
+          if re.search(r"\|",netstat_ports):
+            port_nos = netstat_ports.split("|")
+          else:
+            port_nos[0] = netstat_ports
+      else:
+        if re.search(r"\s+",deny_range):
+          port_nos = allow_list.split()[1]
+          if re.search(r",",port_nos):
+            port_nos = port_nos.split(",")
+          else:
+            port_nos[0] = port_nos
+      if not check_range in allow_list:
+        if len(port_nos) > 0:
+          for port_no in port_nos:
+            ufw_command = "sudo ufw insert 1 deny from %s to any port %s" % (deny_range, port_no)
+            ufw_commands.append(ufw_command)
+        else: 
+          ufw_command = "sudo ufw insert 1 deny from %s to any" % (deny_range)
+          ufw_commands.append(ufw_command)
   return ufw_commands
 
 
 # Create ufw allow commands
-def create_ufw_allow_commands(allow_list, deny_list, ufw_commands, netstat_ports):
+def create_ufw_allow_commands(deny_list, allow_list, ufw_commands, netstat_ports):
   for allow_range in allow_list:
     port_nos = []
     if not re.search(r"^#",allow_range):
       if re.search(r"\d",netstat_ports):
         if re.search(r"\s+",allow_range):
-          check_range = allow_range.split("\s+")[0]
+          check_range = allow_range.split()[0]
         else:
           check_range = allow_range
           if re.search(r"\|",netstat_ports):
@@ -155,7 +177,7 @@ def create_ufw_allow_commands(allow_list, deny_list, ufw_commands, netstat_ports
             port_nos[0] = netstat_ports
       else:
         if re.search(r"\s+",allow_range):
-          port_nos = allow_list.split("\s+")[1]
+          port_nos = allow_list.split()[1]
           if re.search(r",",port_nos):
             port_nos = port_nos.split(",")
           else:
@@ -163,11 +185,11 @@ def create_ufw_allow_commands(allow_list, deny_list, ufw_commands, netstat_ports
       if not check_range in deny_list:
         if len(port_nos) > 0:
           for port_no in port_nos:
-            allow_command = "sudo ufw insert 1 allow from %s to any port %s" % (allow_range, port_no)
-            ufw_commands.append(allow_command)
+            ufw_command = "sudo ufw insert 1 allow from %s to any port %s" % (allow_range, port_no)
+            ufw_commands.append(ufw_command)
         else: 
-          allow_command = "sudo ufw insert 1 allow from %s to any" % (allow_range)
-          ufw_commands.append(allow_command)
+          ufw_command = "sudo ufw insert 1 allow from %s to any" % (allow_range)
+          ufw_commands.append(ufw_command)
   return ufw_commands
 
 
@@ -503,9 +525,9 @@ if verbose_mode is True:
 
 if option['import']:
   if allow_mode == True:
-    ufw_commands = create_ufw_allow_commands(allow_list, deny_list, ufw_commands, netstat_ports)
+    ufw_commands = create_ufw_allow_commands(deny_list, allow_list, ufw_commands, netstat_ports)
   else:
-    ufw_commands = create_ufw_block_commands(allow_list, deny_list, ufw_commands, netstat_ports)
+    ufw_commands = create_ufw_block_commands(deny_list, allow_list, ufw_commands, netstat_ports)
   if verbose_mode is True:
     print("Commands:")
   for block_command in ufw_commands:
@@ -524,7 +546,7 @@ if option["add"]:
 if option["check"]:
   ufw_list   = get_ufw_deny_list(ufw_list)
   deny_list = do_invalid_auth_checks(deny_list, ufw_list, allow_list, netstat_ports)
-  ufw_commands = create_ufw_block_commands(deny_list, ufw_commands)
+  ufw_commands = create_ufw_block_commands(deny_list, allow_list, ufw_commands, netstat_ports)
   ns_list = get_netstat_tcp_connections(ns_list, netstat_ports)
   ufw_commands = create_tcp_disconnect_commands(ns_list, allow_list, ufw_commands)
   if verbose_mode is True:
